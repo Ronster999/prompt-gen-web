@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>prompt_gen — Video Ad Brief Builder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:            #0a0a0a;
+      --surface:       #111111;
+      --surface-2:     #1a1a1a;
+      --border:        rgba(255,255,255,0.06);
+      --border-focus:  rgba(139,92,246,0.4);
+      --border-hover:  rgba(255,255,255,0.11);
+      --text:          #e4e4e7;
+      --text-muted:    #3f3f46;
+      --text-dim:      #71717a;
+      --accent:        #8b5cf6;
+      --accent-hover:  #7c3aed;
+      --accent-glow:   rgba(139,92,246,0.18);
+      --accent-light:  #a78bfa;
+      --success:       #22c55e;
+      --error-bg:      rgba(239,68,68,0.07);
+      --error-border:  rgba(239,68,68,0.25);
+      --error-text:    #f87171;
+      --radius:        12px;
+      --radius-sm:     8px;
+      --radius-xs:     5px;
+    }
+
+    body {
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 60% 40% at 20% -10%, rgba(139,92,246,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 80% 110%,  rgba(139,92,246,0.04) 0%, transparent 60%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 72px 24px 96px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header { margin-bottom: 44px; }
+
+    .wordmark {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 22px;
+    }
+
+    .wordmark-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(139,92,246,0.28);
+      border-radius: var(--radius-xs);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .wordmark-label {
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+      font-size: 13px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+
+    h1 {
+      font-size: clamp(22px, 4vw, 28px);
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-dim);
+      max-width: 480px;
+    }
+
+    /* ── Input card ─────────────────────────────────────────── */
+    .input-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+
+    .input-card:focus-within {
+      border-color: var(--border-focus);
+    }
+
+    .field-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      resize: none;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.75;
+      min-height: 110px;
+      overflow: hidden;
+    }
+
+    textarea::placeholder { color: var(--text-muted); }
+
+    .input-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      gap: 12px;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .hint kbd {
+      font-family: inherit;
+      background: var(--surface-2);
+      border: 1px solid var(--border-hover);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    /* ── Generate button ─────────────────────────────────────── */
+    .btn-generate {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+      flex-shrink: 0;
+    }
+
+    .btn-generate:hover:not(:disabled) {
+      background: var(--accent-hover);
+      box-shadow: 0 0 22px var(--accent-glow);
+    }
+
+    .btn-generate:active:not(:disabled) { transform: scale(0.97); }
+
+    .btn-generate:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255,255,255,0.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    .btn-generate.loading .spinner { display: block; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Error ──────────────────────────────────────────────── */
+    .error-banner {
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      border-radius: var(--radius-sm);
+      color: var(--error-text);
+      font-size: 13px;
+      padding: 11px 14px;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .error-banner.visible { display: block; }
+
+    /* ── Outputs ─────────────────────────────────────────────── */
+    .outputs {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .output-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(10px);
+      transition:
+        opacity 0.38s ease,
+        transform 0.38s ease,
+        border-color 0.2s;
+    }
+
+    .output-card.visible { opacity: 1; transform: none; }
+    .output-card:nth-child(2).visible { transition-delay: 0.08s; }
+    .output-card:nth-child(3).visible { transition-delay: 0.16s; }
+
+    .output-card:hover { border-color: var(--border-hover); }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .platform-badge {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: var(--surface-2);
+      border: 1px solid var(--border-hover);
+      color: var(--text-dim);
+    }
+
+    .platform-badge.video { color: var(--accent-light); border-color: rgba(167,139,250,0.2); background: rgba(139,92,246,0.06); }
+    .platform-badge.tiktok { color: #fb7185; border-color: rgba(251,113,133,0.2); background: rgba(251,113,133,0.05); }
+    .platform-badge.ig     { color: #f59e0b; border-color: rgba(245,158,11,0.2);  background: rgba(245,158,11,0.05); }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .btn-copy {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-dim);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 4px 11px;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      transition: all 0.15s;
+    }
+
+    .btn-copy:hover {
+      color: var(--text);
+      border-color: var(--border-hover);
+      background: var(--surface-2);
+    }
+
+    .btn-copy.copied {
+      color: var(--success);
+      border-color: rgba(34,197,94,0.3);
+    }
+
+    .card-body {
+      padding: 16px 18px;
+    }
+
+    /* Video prompt — renders markdown bold */
+    .video-content {
+      font-size: 13.5px;
+      line-height: 1.8;
+      color: var(--text);
+    }
+
+    .video-content strong {
+      color: var(--accent-light);
+      font-weight: 600;
+    }
+
+    /* TikTok / IG — monospace feel, pre-wrap */
+    .caption-content {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 13.5px;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ── Footer ─────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 48px 0 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+    }
+
+    /* ── Responsive ─────────────────────────────────────────── */
+    @media (max-width: 500px) {
+      .container { padding: 44px 16px 64px; }
+      .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <header>
+      <div class="wordmark">
+        <div class="wordmark-icon">▶</div>
+        <span class="wordmark-label">prompt_gen</span>
+      </div>
+      <h1>Video Ad Brief Builder</h1>
+      <p class="subtitle">
+        Describe your idea in plain English — get a shot-by-shot Kling&nbsp;/&nbsp;Veo
+        prompt, a TikTok caption, and an Instagram caption.
+      </p>
+    </header>
+
+    <div class="input-card">
+      <label class="field-label" for="idea">Describe your video idea</label>
+      <textarea
+        id="idea"
+        placeholder="e.g. A woman in her late 20s wearing an oversized cream hoodie walks through a misty forest at dawn. She pauses, looks at the camera, and holds up a small amber glass bottle. Warm, cinematic, wellness brand."
+        oninput="autoResize(this)"
+        onkeydown="handleKey(event)"
+      ></textarea>
+      <div class="input-footer">
+        <span class="hint">
+          <kbd>⌘</kbd> <kbd>↵</kbd> to generate
+        </span>
+        <button class="btn-generate" id="gen-btn" onclick="generate()">
+          <div class="spinner" id="spinner"></div>
+          <span>Generate</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="error-banner" id="error-banner"></div>
+
+    <div class="outputs" id="outputs">
+
+      <div class="output-card" id="card-video">
+        <div class="card-head">
+          <div class="card-meta">
+            <span class="platform-badge video">Kling · Veo</span>
+            <span class="card-title">AI Video Prompt</span>
+          </div>
+          <button class="btn-copy" onclick="copyEl('video-content', this)">Copy</button>
+        </div>
+        <div class="card-body">
+          <div class="video-content" id="video-content"></div>
+        </div>
+      </div>
+
+      <div class="output-card" id="card-tiktok">
+        <div class="card-head">
+          <div class="card-meta">
+            <span class="platform-badge tiktok">TikTok</span>
+            <span class="card-title">Caption + Hashtags</span>
+          </div>
+          <button class="btn-copy" onclick="copyEl('tiktok-content', this)">Copy</button>
+        </div>
+        <div class="card-body">
+          <div class="caption-content" id="tiktok-content"></div>
+        </div>
+      </div>
+
+      <div class="output-card" id="card-ig">
+        <div class="card-head">
+          <div class="card-meta">
+            <span class="platform-badge ig">Instagram</span>
+            <span class="card-title">Caption + Hashtags</span>
+          </div>
+          <button class="btn-copy" onclick="copyEl('ig-content', this)">Copy</button>
+        </div>
+        <div class="card-body">
+          <div class="caption-content" id="ig-content"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <footer>prompt_gen &nbsp;·&nbsp; Powered by Claude</footer>
+  </div>
+
+  <script>
+    // ── Auto-resize textarea ──────────────────────────────────
+    function autoResize(el) {
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, 380) + "px";
+    }
+
+    // ── Cmd/Ctrl+Enter to submit ──────────────────────────────
+    function handleKey(e) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) generate();
+    }
+
+    // ── Markdown: bold only ───────────────────────────────────
+    function renderMd(text) {
+      return text
+        .replace(/&/g,  "&amp;")
+        .replace(/</g,  "&lt;")
+        .replace(/>/g,  "&gt;")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n/g, "<br>");
+    }
+
+    // ── UI state helpers ──────────────────────────────────────
+    function setLoading(on) {
+      const btn = document.getElementById("gen-btn");
+      btn.disabled = on;
+      btn.classList.toggle("loading", on);
+    }
+
+    function showError(msg) {
+      const el = document.getElementById("error-banner");
+      el.textContent = msg;
+      el.classList.add("visible");
+    }
+
+    function clearError() {
+      document.getElementById("error-banner").classList.remove("visible");
+    }
+
+    function hideCards() {
+      document.querySelectorAll(".output-card").forEach(c => c.classList.remove("visible"));
+    }
+
+    function showCards() {
+      // Stagger using requestAnimationFrame for smooth cascade
+      const cards = document.querySelectorAll(".output-card");
+      cards.forEach((card, i) => {
+        setTimeout(() => card.classList.add("visible"), i * 80);
+      });
+    }
+
+    // ── Main generate ─────────────────────────────────────────
+    async function generate() {
+      const idea = document.getElementById("idea").value.trim();
+      if (!idea) return;
+
+      clearError();
+      hideCards();
+      setLoading(true);
+
+      try {
+        const res  = await fetch("/generate", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ idea }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || data.error) {
+          showError(data.error || "Something went wrong — please try again.");
+          return;
+        }
+
+        // Populate content
+        document.getElementById("video-content").innerHTML  = renderMd(data.video_prompt);
+        document.getElementById("tiktok-content").textContent = data.tiktok_caption;
+        document.getElementById("ig-content").textContent     = data.instagram_caption;
+
+        showCards();
+
+        // Scroll to first card after short delay
+        setTimeout(() => {
+          document.getElementById("card-video")
+            .scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 120);
+
+      } catch (_) {
+        showError("Network error — check your connection and try again.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // ── Copy to clipboard ─────────────────────────────────────
+    function copyEl(id, btn) {
+      const el   = document.getElementById(id);
+      const text = (el.textContent || el.innerText).trim();
+      const orig = btn.textContent;
+
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = "Copied!";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = orig;
+          btn.classList.remove("copied");
+        }, 2000);
+      }).catch(() => {
+        btn.textContent = "Failed";
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
