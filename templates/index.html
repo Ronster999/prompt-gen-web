@@ -238,9 +238,6 @@
     }
 
     .output-card.visible { opacity: 1; transform: none; }
-    .output-card:nth-child(2).visible { transition-delay: 0.08s; }
-    .output-card:nth-child(3).visible { transition-delay: 0.16s; }
-
     .output-card:hover { border-color: var(--border-hover); }
 
     .card-head {
@@ -269,9 +266,42 @@
       color: var(--text-dim);
     }
 
-    .platform-badge.video { color: var(--accent-light); border-color: rgba(167,139,250,0.2); background: rgba(139,92,246,0.06); }
-    .platform-badge.tiktok { color: #fb7185; border-color: rgba(251,113,133,0.2); background: rgba(251,113,133,0.05); }
-    .platform-badge.ig     { color: #f59e0b; border-color: rgba(245,158,11,0.2);  background: rgba(245,158,11,0.05); }
+    .platform-badge.video  { color: var(--accent-light); border-color: rgba(167,139,250,0.2); background: rgba(139,92,246,0.06); }
+    .platform-badge.tiktok { color: #fb7185;              border-color: rgba(251,113,133,0.2); background: rgba(251,113,133,0.05); }
+    .platform-badge.ig     { color: #f59e0b;              border-color: rgba(245,158,11,0.2);  background: rgba(245,158,11,0.05); }
+    .platform-badge.clip   { color: #38bdf8;              border-color: rgba(56,189,248,0.2);  background: rgba(56,189,248,0.05); }
+
+    /* ── Series mode layout ─────────────────────────────────── */
+    .series-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .series-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #38bdf8;
+    }
+
+    .series-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .series-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 560px) {
+      .series-grid { grid-template-columns: 1fr; }
+    }
 
     .card-title {
       font-size: 13px;
@@ -381,48 +411,7 @@
 
     <div class="error-banner" id="error-banner"></div>
 
-    <div class="outputs" id="outputs">
-
-      <div class="output-card" id="card-video">
-        <div class="card-head">
-          <div class="card-meta">
-            <span class="platform-badge video">Kling · Veo</span>
-            <span class="card-title">AI Video Prompt</span>
-          </div>
-          <button class="btn-copy" onclick="copyEl('video-content', this)">Copy</button>
-        </div>
-        <div class="card-body">
-          <div class="video-content" id="video-content"></div>
-        </div>
-      </div>
-
-      <div class="output-card" id="card-tiktok">
-        <div class="card-head">
-          <div class="card-meta">
-            <span class="platform-badge tiktok">TikTok</span>
-            <span class="card-title">Caption + Hashtags</span>
-          </div>
-          <button class="btn-copy" onclick="copyEl('tiktok-content', this)">Copy</button>
-        </div>
-        <div class="card-body">
-          <div class="caption-content" id="tiktok-content"></div>
-        </div>
-      </div>
-
-      <div class="output-card" id="card-ig">
-        <div class="card-head">
-          <div class="card-meta">
-            <span class="platform-badge ig">Instagram</span>
-            <span class="card-title">Caption + Hashtags</span>
-          </div>
-          <button class="btn-copy" onclick="copyEl('ig-content', this)">Copy</button>
-        </div>
-        <div class="card-body">
-          <div class="caption-content" id="ig-content"></div>
-        </div>
-      </div>
-
-    </div>
+    <div class="outputs" id="outputs"></div>
 
     <footer>prompt_gen &nbsp;·&nbsp; Powered by Claude</footer>
   </div>
@@ -439,17 +428,86 @@
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) generate();
     }
 
-    // ── Markdown: bold only ───────────────────────────────────
-    function renderMd(text) {
-      return text
-        .replace(/&/g,  "&amp;")
-        .replace(/</g,  "&lt;")
-        .replace(/>/g,  "&gt;")
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    // ── Escape + render markdown bold ────────────────────────
+    function esc(str) {
+      return str
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
         .replace(/\n/g, "<br>");
     }
 
-    // ── UI state helpers ──────────────────────────────────────
+    function renderMd(str) {
+      return esc(str).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    }
+
+    // ── Card HTML builders ────────────────────────────────────
+    function makeCard(badgeClass, badgeText, titleText, contentId, innerHtml, bodyClass) {
+      return `
+        <div class="output-card">
+          <div class="card-head">
+            <div class="card-meta">
+              <span class="platform-badge ${badgeClass}">${badgeText}</span>
+              <span class="card-title">${titleText}</span>
+            </div>
+            <button class="btn-copy" onclick="copyEl('${contentId}', this)">Copy</button>
+          </div>
+          <div class="card-body">
+            <div class="${bodyClass}" id="${contentId}">${innerHtml}</div>
+          </div>
+        </div>`;
+    }
+
+    function videoCard(text) {
+      return makeCard("video", "Kling · Veo", "AI Video Prompt",
+                      "video-content", renderMd(text), "video-content");
+    }
+
+    function clipCard(n, text) {
+      return makeCard("clip", `Clip ${n}`, "4–5s · Kling",
+                      `clip-${n}-content`, renderMd(text), "video-content");
+    }
+
+    function captionCard(platform, text) {
+      const cfg = {
+        tiktok: { badge: "tiktok", label: "TikTok",    title: "Caption + Hashtags", id: "tiktok-content" },
+        ig:     { badge: "ig",     label: "Instagram", title: "Caption + Hashtags", id: "ig-content"     },
+      }[platform];
+      return makeCard(cfg.badge, cfg.label, cfg.title, cfg.id, esc(text), "caption-content");
+    }
+
+    // ── Render outputs based on response shape ────────────────
+    function renderOutputs(data) {
+      const wrap = document.getElementById("outputs");
+
+      if (data.clip_1) {
+        // Mode C — series
+        const clipsHtml = [1,2,3,4,5,6].map(n => clipCard(n, data[`clip_${n}`])).join("");
+        wrap.innerHTML = `
+          <div class="series-header">
+            <span class="series-label">Series Mode — 6 Clips</span>
+            <span class="series-hint">standalone Kling prompts · 4–5s each</span>
+          </div>
+          <div class="series-grid">${clipsHtml}</div>
+          ${captionCard("tiktok", data.tiktok_caption)}
+          ${captionCard("ig",     data.instagram_caption)}`;
+      } else {
+        // Mode A or B — single prompt
+        wrap.innerHTML =
+          videoCard(data.video_prompt) +
+          captionCard("tiktok", data.tiktok_caption) +
+          captionCard("ig",     data.instagram_caption);
+      }
+
+      // Staggered fade-in for every output-card
+      const cards = wrap.querySelectorAll(".output-card");
+      cards.forEach((card, i) => {
+        setTimeout(() => card.classList.add("visible"), i * 70);
+      });
+
+      // Scroll to top of results
+      setTimeout(() => wrap.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }
+
+    // ── UI helpers ────────────────────────────────────────────
     function setLoading(on) {
       const btn = document.getElementById("gen-btn");
       btn.disabled = on;
@@ -466,25 +524,13 @@
       document.getElementById("error-banner").classList.remove("visible");
     }
 
-    function hideCards() {
-      document.querySelectorAll(".output-card").forEach(c => c.classList.remove("visible"));
-    }
-
-    function showCards() {
-      // Stagger using requestAnimationFrame for smooth cascade
-      const cards = document.querySelectorAll(".output-card");
-      cards.forEach((card, i) => {
-        setTimeout(() => card.classList.add("visible"), i * 80);
-      });
-    }
-
     // ── Main generate ─────────────────────────────────────────
     async function generate() {
       const idea = document.getElementById("idea").value.trim();
       if (!idea) return;
 
       clearError();
-      hideCards();
+      document.getElementById("outputs").innerHTML = "";
       setLoading(true);
 
       try {
@@ -501,18 +547,7 @@
           return;
         }
 
-        // Populate content
-        document.getElementById("video-content").innerHTML  = renderMd(data.video_prompt);
-        document.getElementById("tiktok-content").textContent = data.tiktok_caption;
-        document.getElementById("ig-content").textContent     = data.instagram_caption;
-
-        showCards();
-
-        // Scroll to first card after short delay
-        setTimeout(() => {
-          document.getElementById("card-video")
-            .scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 120);
+        renderOutputs(data);
 
       } catch (_) {
         showError("Network error — check your connection and try again.");
@@ -530,10 +565,7 @@
       navigator.clipboard.writeText(text).then(() => {
         btn.textContent = "Copied!";
         btn.classList.add("copied");
-        setTimeout(() => {
-          btn.textContent = orig;
-          btn.classList.remove("copied");
-        }, 2000);
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove("copied"); }, 2000);
       }).catch(() => {
         btn.textContent = "Failed";
         setTimeout(() => { btn.textContent = orig; }, 2000);
